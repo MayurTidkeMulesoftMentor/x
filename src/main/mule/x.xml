@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="ee2981c4-8d13-4410-9546-e732b1fc95e6" >
+		<http:request-connection >
+			<http:authentication >
+				<http:basic-authentication username="KZ25TpHNeppVOmwtKpD6jQAjnq4vrLG1" password="CYBpVYhSeqSy4GSR" />
+			</http:authentication>
+		</http:request-connection>
+	</http:request-config>
+	<flow name="xFlow" doc:id="c696a9e3-edd2-40eb-a9e8-3888de73d0a6" >
+		<scheduler doc:name="Scheduler" doc:id="44633ef7-f558-479b-bad7-57c7c5b8cae5" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="5" timeUnit="MINUTES"/>
+			</scheduling-strategy>
+		</scheduler>
+		<ee:transform doc:name="Transform Message" doc:id="55ef9e7c-a156-4170-96cd-338ab2f96df7" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="header" ><![CDATA[%dw 2.0
+output application/x-www-form-urlencoded
+---
+{
+	"grant_type": "client_credentials"
+}]]></ee:set-variable>
+				<ee:set-variable variableName="BID" ><![CDATA[%dw 2.0
+output application/json
+---
+"BID7890"]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="Flow Reference" doc:id="b0ce8391-4827-4ea3-bd0c-096735c9c1f8" name="oauth" target="token" targetValue="#[payload.access_token]"/>
+		<flow-ref doc:name="main" doc:id="2e579ef0-82d3-46d1-8ae5-cb0179b9c58c" name="main" target="data"/>
+		<logger level="INFO" doc:name="Logger" doc:id="c4aafe52-b25c-4b68-823c-a9dc09a24ff9" message="#[vars.token]"/>
+	</flow>
+	<flow name="main" doc:id="6fe93b9d-bbd1-44f5-8d8c-2453e542e337" >
+		<ee:transform doc:name="Transform Message" doc:id="154995ff-e573-4c50-983a-c502a0ff43e1" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="url" ><![CDATA[%dw 2.0
+output application/json
+var x = "https://onlineman477-eval-prod.apigee.net/booking/" ++ vars.BID
+---
+x]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<http:request method="GET" doc:name="main" doc:id="e6e90648-7536-4025-8078-035f94c425a6" url="#[vars.url]" sendBodyMode="ALWAYS" outputMimeType="application/json">
+			<http:headers ><![CDATA[#[%dw 2.0
+output application/json
+--- 
+{
+  "Content-Type": "application/json",
+  "Authorization": "Bearer " ++ vars.token as String,
+}]]]></http:headers>
+			<http:response-validator >
+				<http:success-status-code-validator values="200..599" />
+			</http:response-validator>
+		</http:request>
+	</flow>
+	<flow name="oauth" doc:id="f1c10632-27b8-463f-a979-c417f05cdc5f" >
+		<http:request method="POST" doc:name="oauth" doc:id="3f9f8eca-aae7-4764-896e-1b699da50875" url="https://onlineman477-eval-prod.apigee.net/owasp-oauth/token" config-ref="HTTP_Request_configuration">
+			<http:body ><![CDATA[#[vars.header]]]></http:body>
+		</http:request>
+	</flow>
+</mule>
